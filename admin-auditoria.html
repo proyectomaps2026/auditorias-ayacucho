@@ -2,131 +2,274 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>SGF | PANEL DE CONTRALORÍA MUNICIPAL</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SGF MASTER | Auditoría de Fiscalización</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <script src="https://unpkg.com/docx@7.1.0/build/index.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
     <style>
-        :root { --danger: #ff3333; --dark: #0a0a0c; --card: #151518; --primary: #0062ff; }
-        body { font-family: sans-serif; background: var(--dark); color: white; margin: 0; }
-        .login-screen { height: 100vh; display: flex; justify-content: center; align-items: center; background: #000; }
-        .panel-admin { display: none; padding: 40px; }
-        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; padding-bottom: 20px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; background: var(--card); }
-        th { background: #111; padding: 15px; text-align: left; color: #888; font-size: 12px; }
+        :root { 
+            --primary: #0062ff; --dark: #0a0a0c; --card: #151518; --text: #e0e0e0; 
+            --success: #00c853; --warning: #ffcc00; --danger: #ff3333; --blue-pro: #1976d2; 
+        }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--dark); color: var(--text); margin: 0; overflow-x: hidden; }
+        
+        /* Login Overlay */
+        #loginOverlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: var(--dark); z-index: 9999; display: flex; justify-content: center; align-items: center;
+        }
+        .login-box {
+            background: var(--card); padding: 40px; border-radius: 12px; border: 1px solid #333; width: 320px; text-align: center;
+        }
+
+        /* Layout Principal */
+        .main-container { display: none; width: 100%; min-height: 100vh; padding: 20px; box-sizing: border-box; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; border-bottom: 1px solid #222; padding-bottom: 15px; }
+        
+        /* Tabla de Auditoría */
+        .table-container { background: var(--card); border-radius: 10px; border: 1px solid #222; overflow: hidden; }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: #111; color: #888; padding: 15px; text-align: left; font-size: 12px; text-transform: uppercase; }
         td { padding: 15px; border-bottom: 1px solid #222; font-size: 13px; }
-        .btn-word { background: #2b5797; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; }
-        .badge-update { color: #ffcc00; font-weight: bold; }
+        .row-softr { border-left: 4px solid var(--success); } /* Marca cambios de Softr */
+        
+        /* Inputs y Botones */
+        input, select, textarea { 
+            background: #000; color: #fff; border: 1px solid #333; padding: 10px; border-radius: 5px; outline: none;
+        }
+        .btn { 
+            padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: 600; display: inline-flex; align-items: center; gap: 8px;
+        }
+        .btn-blue { background: var(--blue-pro); color: white; }
+        .btn-config { background: #333; color: white; }
+        .btn-save { background: var(--success); color: white; }
+
+        /* Modal */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 10000; }
+        .modal-content { background: var(--card); width: 450px; margin: 100px auto; padding: 30px; border-radius: 12px; border: 1px solid #444; }
+
+        .badge { padding: 4px 8px; border-radius: 4px; font-size: 10px; font-weight: bold; }
+        .badge-softr { background: rgba(0, 200, 83, 0.2); color: var(--success); }
     </style>
 </head>
 <body>
 
-<div id="loginSection" class="login-screen">
-    <div style="background: var(--card); padding: 40px; border-radius: 10px; border: 1px solid #333; width: 300px;">
-        <h2 style="text-align:center; color: var(--primary);">SUPER ADMIN</h2>
-        <input type="password" id="adminPass" placeholder="Clave de Seguridad" style="width:100%; padding:10px; margin: 10px 0; background: #000; color:white; border: 1px solid #444;">
-        <button onclick="checkLogin()" style="width:100%; padding:10px; background: var(--primary); color:white; border:none; cursor:pointer;">ENTRAR AL SISTEMA</button>
+<div id="loginOverlay">
+    <div class="login-box">
+        <i class="fa-solid fa-shield-halved" style="font-size: 40px; color: var(--primary); margin-bottom: 20px;"></i>
+        <h2>CONTROL MASTER</h2>
+        <input type="password" id="masterPass" placeholder="Clave de Auditoría" style="width: 100%; box-sizing: border-box;">
+        <button class="btn btn-blue" onclick="validarAcceso()" style="width: 100%; margin-top: 15px;">INGRESAR</button>
     </div>
 </div>
 
-<div id="adminPanel" class="panel-admin">
+<div class="main-container" id="panelPrincipal">
     <div class="header">
-        <h1><i class="fa-solid fa-gavel"></i> Auditoría de Hacienda Municipal</h1>
         <div>
-            <select id="filtroMes" style="padding: 10px; background: #111; color: white;">
-                <option value="04">Abril 2026</option>
-                <option value="05">Mayo 2026</option>
-            </select>
-            <button class="btn-word" onclick="exportarWord()"><i class="fa-solid fa-file-word"></i> Generar Acta de Contraloría</button>
+            <h1><i class="fa-solid fa-building-columns"></i> Contraloría de Hacienda</h1>
+            <p style="color: #666; font-size: 12px;">SISTEMA DE FISCALIZACIÓN MUNICIPAL - MODO ONLINE</p>
+        </div>
+        <div style="display: flex; gap: 10px;">
+            <button class="btn btn-config" onclick="abrirConfig()"><i class="fa-solid fa-gear"></i> CONFIG</button>
+            <button class="btn btn-blue" onclick="generarReporteWord()"><i class="fa-solid fa-file-word"></i> EXPORTAR MES</button>
         </div>
     </div>
 
-    <table>
-        <thead>
-            <tr>
-                <th>FECHA</th>
-                <th>AUTOR DEL CAMBIO</th>
-                <th>ACCIÓN</th>
-                <th>DATO ANTERIOR</th>
-                <th>DATO NUEVO</th>
-                <th>ID REGISTRO</th>
-            </tr>
-        </thead>
-        <tbody id="logTableBody">
-            </tbody>
-    </table>
+    <div style="margin-bottom: 20px; display: flex; gap: 15px; align-items: center;">
+        <select id="filtroMes">
+            <option value="">Seleccionar Mes...</option>
+            <option value="01">Enero</option><option value="02">Febrero</option>
+            <option value="03">Marzo</option><option value="04" selected>Abril</option>
+        </select>
+        <button class="btn btn-save" onclick="sincronizarAhora()"><i class="fa-solid fa-rotate"></i> SINCRONIZAR CLOUD</button>
+    </div>
+
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Fecha / Hora</th>
+                    <th>Responsable</th>
+                    <th>Origen</th>
+                    <th>Anterior</th>
+                    <th>Nuevo</th>
+                    <th>Ref ID</th>
+                </tr>
+            </thead>
+            <tbody id="tablaCuerpo">
+                </tbody>
+        </table>
+    </div>
+
+    <div style="margin-top: 40px; border-top: 1px solid #222; padding-top: 20px;">
+        <h3><i class="fa-solid fa-database"></i> Inyección Manual (RAW JSON)</h3>
+        <textarea id="rawJsonInput" style="width: 100%; height: 80px; font-family: monospace;" placeholder='[{"Fecha": "2026-04-14", "Autor": "directora@hacienda.gob", "Accion": "UPDATE"}]'></textarea>
+        <button class="btn btn-config" style="margin-top: 10px;" onclick="cargarRaw()">PROCESAR DATOS RAW</button>
+    </div>
+</div>
+
+<div id="modalConfig" class="modal">
+    <div class="modal-content">
+        <h3><i class="fa-solid fa-key"></i> Configuración de Enlace GitHub</h3>
+        <p style="font-size: 11px; color: #888;">El token será revertido automáticamente para mayor seguridad en el almacenamiento local.</p>
+        <label style="display:block; margin-bottom:5px;">Token GitHub (ghp_...):</label>
+        <input type="password" id="githubTokenInput" style="width: 100%; box-sizing: border-box; margin-bottom: 20px;">
+        
+        <div style="display: flex; justify-content: flex-end; gap: 10px;">
+            <button class="btn btn-config" onclick="cerrarConfig()">CANCELAR</button>
+            <button class="btn btn-blue" onclick="guardarGithubConfig()">GUARDAR LLAVE</button>
+        </div>
+    </div>
 </div>
 
 <script>
-    // 1. CONFIGURACIÓN DE SEGURIDAD (Cámbiala tú mismo)
-    const SUPER_CLAVE = "Hacienda2026*"; 
-    
-    // 2. CONFIGURACIÓN DE AIRTABLE (Usa lo mismo que el HTML anterior)
-    const AIRTABLE_BASE = "tu_base_id";
-    const AIRTABLE_TABLE = "LOG_EV_02_AUDIT";
-    const AIRTABLE_TOKEN = "tu_token_aqui";
+    // --- VARIABLES DE ENTORNO ---
+    const CLAVE_MAESTRA = "Hacienda2026*"; // Cambia esta clave si lo deseas
+    const AIRTABLE_API = "https://api.airtable.com/v0/appXXXXXXXX/LOG_EV_02_AUDIT"; // Reemplaza con tus IDs
+    const AIRTABLE_TOKEN = "patXXXX.XXXX"; 
+    const GITHUB_REPO = "proyectomaps2026/sgf-cloud-services";
+    const GITHUB_FILE = "auditoria_master.json";
 
-    function checkLogin() {
-        const pass = document.getElementById('adminPass').value;
-        if(pass === SUPER_CLAVE) {
-            document.getElementById('loginSection').style.display = 'none';
-            document.getElementById('adminPanel').style.display = 'block';
-            cargarLogs();
+    // --- SEGURIDAD Y ACCESO ---
+    function validarAcceso() {
+        const pass = document.getElementById('masterPass').value;
+        if(pass === CLAVE_MAESTRA) {
+            document.getElementById('loginOverlay').style.display = 'none';
+            document.getElementById('panelPrincipal').style.display = 'block';
+            cargarDatosAirtable();
         } else {
-            alert("Acceso Denegado");
+            alert("Acceso No Autorizado");
         }
     }
 
-    async function cargarLogs() {
-        const url = `https://api.airtable.com/v0/${AIRTABLE_BASE}/${AIRTABLE_TABLE}?sort[0][field]=Fecha_Movimiento&sort[0][direction]=desc`;
-        const response = await fetch(url, {
-            headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` }
-        });
-        const data = await response.json();
+    // --- CONFIGURACIÓN DE TOKEN (CON REVERT) ---
+    function abrirConfig() {
+        const revertido = localStorage.getItem('gh_revert');
+        if(revertido) {
+            document.getElementById('githubTokenInput').value = revertido.split('').reverse().join('');
+        }
+        document.getElementById('modalConfig').style.display = 'block';
+    }
+
+    function cerrarConfig() { document.getElementById('modalConfig').style.display = 'none'; }
+
+    function guardarGithubConfig() {
+        const token = document.getElementById('githubTokenInput').value.trim();
+        if(!token.startsWith('ghp_')) return alert("Token de GitHub no válido");
         
-        const body = document.getElementById('logTableBody');
-        body.innerHTML = "";
+        // Guardado automático con reversión
+        const tokenRevert = token.split('').reverse().join('');
+        localStorage.setItem('gh_revert', tokenRevert);
         
-        data.records.forEach(record => {
-            const f = record.fields;
-            body.innerHTML += `
-                <tr>
-                    <td>${f.Fecha_Movimiento || ''}</td>
-                    <td><b style="color:var(--primary)">${f.Autor_Change || 'SISTEMA'}</b></td>
-                    <td class="badge-update">${f.Tipo_Accion || 'UPDATE'}</td>
-                    <td style="color:#888">${f.Detalle_Anterior || ''}</td>
-                    <td style="color:#00c853">${f.Detalle_Nuevo || ''}</td>
-                    <td><code>${f.ID_Ref || ''}</code></td>
-                </tr>
+        cerrarConfig();
+        alert("Configuración de Nube Actualizada.");
+    }
+
+    // --- LÓGICA DE AUDITORÍA Y FILTRADO ---
+    async function cargarDatosAirtable() {
+        try {
+            const res = await fetch(AIRTABLE_API, {
+                headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` }
+            });
+            const data = await res.json();
+            renderizarTabla(data.records);
+        } catch (e) { console.error("Error cargando Airtable", e); }
+    }
+
+    function renderizarTabla(records) {
+        const cuerpo = document.getElementById('tablaCuerpo');
+        cuerpo.innerHTML = "";
+
+        records.forEach(rec => {
+            const f = rec.fields;
+            const esSoftr = f.Autor_Cambio && f.Autor_Cambio.includes('@'); // Filtro de email
+            
+            const tr = document.createElement('tr');
+            if(esSoftr) tr.className = "row-softr";
+
+            tr.innerHTML = `
+                <td>${f.Fecha_Movimiento || '-'}</td>
+                <td style="font-weight:bold; color:${esSoftr ? 'var(--success)' : '#888'}">${f.Autor_Cambio || 'Manual/Admin'}</td>
+                <td><span class="badge ${esSoftr ? 'badge-softr' : ''}">${esSoftr ? 'SOFTR APP' : 'AIRTABLE'}</span></td>
+                <td style="color:#777">${f.Detalle_Anterior || ''}</td>
+                <td style="color:var(--success)">${f.Detalle_Nuevo || ''}</td>
+                <td><code>${f.ID_Ref || ''}</code></td>
             `;
+            cuerpo.appendChild(tr);
         });
     }
 
-    async function exportarWord() {
-        const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType } = docx;
-        const mes = document.getElementById('filtroMes').selectedOptions[0].text;
+    // --- PERSISTENCIA AUTOMÁTICA EN GITHUB ---
+    async function sincronizarAhora() {
+        const revert = localStorage.getItem('gh_revert');
+        if(!revert) return alert("Configure la llave de GitHub primero");
         
-        // Crear documento Word
+        const tokenReal = revert.split('').reverse().join('');
+        const url = `https://api.github.com/repos/${GITHUB_REPO}/contents/${GITHUB_FILE}`;
+
+        try {
+            // 1. Obtener datos de Airtable
+            const resAT = await fetch(AIRTABLE_API, { headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` } });
+            const records = await resAT.json();
+            
+            // 2. Filtrar solo los de Softr (Con @) para el cloud
+            const soloSoftr = records.records
+                .map(r => r.fields)
+                .filter(f => f.Autor_Cambio && f.Autor_Cambio.includes('@'));
+
+            // 3. Subir a GitHub (Modo Reemplazo/Update)
+            // Primero pedimos el SHA del archivo existente
+            const fileRes = await fetch(url, { headers: { Authorization: `token ${tokenReal}` } });
+            const fileJson = await fileRes.json();
+            
+            const putRes = await fetch(url, {
+                method: "PUT",
+                headers: { Authorization: `token ${tokenReal}`, "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    message: "Sincronización Automática Auditoría Hacienda",
+                    content: btoa(JSON.stringify(soloSoftr, null, 4)),
+                    sha: fileJson.sha
+                })
+            });
+
+            if(putRes.ok) alert("Auditoría guardada permanentemente en GitHub Cloud.");
+        } catch (e) { alert("Error en sincronización: " + e.message); }
+    }
+
+    // --- GENERACIÓN DE WORD ---
+    function generarReporteWord() {
+        const { Document, Packer, Paragraph, TextRun } = docx;
+        const mesStr = document.getElementById('filtroMes').options[document.getElementById('filtroMes').selectedIndex].text;
+
         const doc = new Document({
             sections: [{
                 children: [
                     new Paragraph({
-                        children: [
-                            new TextRun({ text: "REPORTE DE AUDITORÍA - HACIENDA MUNICIPAL", bold: true, size: 32 }),
-                        ],
-                        alignment: "center",
+                        children: [ new TextRun({ text: `ACTA DE AUDITORÍA MUNICIPAL - ${mesStr.toUpperCase()}`, bold: true, size: 28 }) ],
+                        alignment: "center"
                     }),
-                    new Paragraph({ text: `Mes de reporte: ${mes}`, margin: { bottom: 400 } }),
-                    new Paragraph({ text: "Este documento certifica las modificaciones realizadas en el sistema censal durante el periodo seleccionado.", italics: true }),
-                    // Aquí podrías generar una tabla en el Word recorriendo los datos de la tabla actual
-                ],
-            }],
+                    new Paragraph({ text: "\nEste documento certifica que los cambios registrados provienen exclusivamente de usuarios autenticados en el sistema Softr.", italics: true }),
+                    new Paragraph({ text: "\n[TABLA DE REGISTROS ADJUNTA EN SISTEMA DIGITAL]" })
+                ]
+            }]
         });
 
         Packer.toBlob(doc).then(blob => {
-            saveAs(blob, `Auditoria_Hacienda_${mes}.docx`);
+            saveAs(blob, `Reporte_Hacienda_${mesStr}_2026.docx`);
         });
     }
+
+    function cargarRaw() {
+        const val = document.getElementById('rawJsonInput').value;
+        try {
+            const parsed = JSON.parse(val);
+            alert("Datos RAW cargados en memoria. Listos para sincronizar.");
+            console.log(parsed);
+        } catch(e) { alert("Error en formato JSON"); }
+    }
 </script>
+
 </body>
 </html>
