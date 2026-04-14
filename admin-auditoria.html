@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>SGF | PANEL DE CONTRALORÍA MUNICIPAL</title>
+    <script src="https://unpkg.com/docx@7.1.0/build/index.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root { --danger: #ff3333; --dark: #0a0a0c; --card: #151518; --primary: #0062ff; }
+        body { font-family: sans-serif; background: var(--dark); color: white; margin: 0; }
+        .login-screen { height: 100vh; display: flex; justify-content: center; align-items: center; background: #000; }
+        .panel-admin { display: none; padding: 40px; }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; padding-bottom: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; background: var(--card); }
+        th { background: #111; padding: 15px; text-align: left; color: #888; font-size: 12px; }
+        td { padding: 15px; border-bottom: 1px solid #222; font-size: 13px; }
+        .btn-word { background: #2b5797; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; }
+        .badge-update { color: #ffcc00; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div id="loginSection" class="login-screen">
+    <div style="background: var(--card); padding: 40px; border-radius: 10px; border: 1px solid #333; width: 300px;">
+        <h2 style="text-align:center; color: var(--primary);">SUPER ADMIN</h2>
+        <input type="password" id="adminPass" placeholder="Clave de Seguridad" style="width:100%; padding:10px; margin: 10px 0; background: #000; color:white; border: 1px solid #444;">
+        <button onclick="checkLogin()" style="width:100%; padding:10px; background: var(--primary); color:white; border:none; cursor:pointer;">ENTRAR AL SISTEMA</button>
+    </div>
+</div>
+
+<div id="adminPanel" class="panel-admin">
+    <div class="header">
+        <h1><i class="fa-solid fa-gavel"></i> Auditoría de Hacienda Municipal</h1>
+        <div>
+            <select id="filtroMes" style="padding: 10px; background: #111; color: white;">
+                <option value="04">Abril 2026</option>
+                <option value="05">Mayo 2026</option>
+            </select>
+            <button class="btn-word" onclick="exportarWord()"><i class="fa-solid fa-file-word"></i> Generar Acta de Contraloría</button>
+        </div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>FECHA</th>
+                <th>AUTOR DEL CAMBIO</th>
+                <th>ACCIÓN</th>
+                <th>DATO ANTERIOR</th>
+                <th>DATO NUEVO</th>
+                <th>ID REGISTRO</th>
+            </tr>
+        </thead>
+        <tbody id="logTableBody">
+            </tbody>
+    </table>
+</div>
+
+<script>
+    // 1. CONFIGURACIÓN DE SEGURIDAD (Cámbiala tú mismo)
+    const SUPER_CLAVE = "Hacienda2026*"; 
+    
+    // 2. CONFIGURACIÓN DE AIRTABLE (Usa lo mismo que el HTML anterior)
+    const AIRTABLE_BASE = "tu_base_id";
+    const AIRTABLE_TABLE = "LOG_EV_02_AUDIT";
+    const AIRTABLE_TOKEN = "tu_token_aqui";
+
+    function checkLogin() {
+        const pass = document.getElementById('adminPass').value;
+        if(pass === SUPER_CLAVE) {
+            document.getElementById('loginSection').style.display = 'none';
+            document.getElementById('adminPanel').style.display = 'block';
+            cargarLogs();
+        } else {
+            alert("Acceso Denegado");
+        }
+    }
+
+    async function cargarLogs() {
+        const url = `https://api.airtable.com/v0/${AIRTABLE_BASE}/${AIRTABLE_TABLE}?sort[0][field]=Fecha_Movimiento&sort[0][direction]=desc`;
+        const response = await fetch(url, {
+            headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` }
+        });
+        const data = await response.json();
+        
+        const body = document.getElementById('logTableBody');
+        body.innerHTML = "";
+        
+        data.records.forEach(record => {
+            const f = record.fields;
+            body.innerHTML += `
+                <tr>
+                    <td>${f.Fecha_Movimiento || ''}</td>
+                    <td><b style="color:var(--primary)">${f.Autor_Change || 'SISTEMA'}</b></td>
+                    <td class="badge-update">${f.Tipo_Accion || 'UPDATE'}</td>
+                    <td style="color:#888">${f.Detalle_Anterior || ''}</td>
+                    <td style="color:#00c853">${f.Detalle_Nuevo || ''}</td>
+                    <td><code>${f.ID_Ref || ''}</code></td>
+                </tr>
+            `;
+        });
+    }
+
+    async function exportarWord() {
+        const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType } = docx;
+        const mes = document.getElementById('filtroMes').selectedOptions[0].text;
+        
+        // Crear documento Word
+        const doc = new Document({
+            sections: [{
+                children: [
+                    new Paragraph({
+                        children: [
+                            new TextRun({ text: "REPORTE DE AUDITORÍA - HACIENDA MUNICIPAL", bold: true, size: 32 }),
+                        ],
+                        alignment: "center",
+                    }),
+                    new Paragraph({ text: `Mes de reporte: ${mes}`, margin: { bottom: 400 } }),
+                    new Paragraph({ text: "Este documento certifica las modificaciones realizadas en el sistema censal durante el periodo seleccionado.", italics: true }),
+                    // Aquí podrías generar una tabla en el Word recorriendo los datos de la tabla actual
+                ],
+            }],
+        });
+
+        Packer.toBlob(doc).then(blob => {
+            saveAs(blob, `Auditoria_Hacienda_${mes}.docx`);
+        });
+    }
+</script>
+</body>
+</html>
