@@ -104,9 +104,9 @@
     </div>
 
     <div style="margin-top: 40px; border-top: 1px solid #222; padding-top: 20px;">
-        <h3><i class="fa-solid fa-database"></i> Inyección Manual (RAW JSON)</h3>
-        <textarea id="rawJsonInput" style="width: 100%; height: 80px; font-family: monospace;" placeholder='[{"Fecha": "2026-04-14", "Autor": "directora@hacienda.gob", "Accion": "UPDATE"}]'></textarea>
-        <button class="btn btn-config" style="margin-top: 10px;" onclick="cargarRaw()">PROCESAR DATOS RAW</button>
+        <h3><i class="fa-solid fa-database"></i> Inyección Manual (RAW CSV)</h3>
+        <input type="text" id="rawCsvInput" style="width: 100%; box-sizing: border-box; font-family: monospace;" value="https://raw.githubusercontent.com/proyectomaps2026/mapa-censo/refs/heads/main/datos_censo.csv">
+        <button class="btn btn-config" style="margin-top: 10px;" onclick="cargarRaw()">PROCESAR DATOS CSV</button>
     </div>
 </div>
 
@@ -183,19 +183,19 @@
         cuerpo.innerHTML = "";
 
         records.forEach(rec => {
-            const f = rec.fields;
+            const f = rec.fields || rec; // Soporta tanto formato Airtable como objetos directos
             const esSoftr = f.Autor_Cambio && f.Autor_Cambio.includes('@'); // Filtro de email
             
             const tr = document.createElement('tr');
             if(esSoftr) tr.className = "row-softr";
 
             tr.innerHTML = `
-                <td>${f.Fecha_Movimiento || '-'}</td>
-                <td style="font-weight:bold; color:${esSoftr ? 'var(--success)' : '#888'}">${f.Autor_Cambio || 'Manual/Admin'}</td>
-                <td><span class="badge ${esSoftr ? 'badge-softr' : ''}">${esSoftr ? 'SOFTR APP' : 'AIRTABLE'}</span></td>
-                <td style="color:#777">${f.Detalle_Anterior || ''}</td>
-                <td style="color:var(--success)">${f.Detalle_Nuevo || ''}</td>
-                <td><code>${f.ID_Ref || ''}</code></td>
+                <td>${f.Fecha_Movimiento || f.Fecha || '-'}</td>
+                <td style="font-weight:bold; color:${esSoftr ? 'var(--success)' : '#888'}">${f.Autor_Cambio || f.Autor || 'Manual/Admin'}</td>
+                <td><span class="badge ${esSoftr ? 'badge-softr' : ''}">${esSoftr ? 'SOFTR APP' : 'SISTEMA'}</span></td>
+                <td style="color:#777">${f.Detalle_Anterior || f.Anterior || ''}</td>
+                <td style="color:var(--success)">${f.Detalle_Nuevo || f.Nuevo || ''}</td>
+                <td><code>${f.ID_Ref || f.ID || ''}</code></td>
             `;
             cuerpo.appendChild(tr);
         });
@@ -220,7 +220,6 @@
                 .filter(f => f.Autor_Cambio && f.Autor_Cambio.includes('@'));
 
             // 3. Subir a GitHub (Modo Reemplazo/Update)
-            // Primero pedimos el SHA del archivo existente
             const fileRes = await fetch(url, { headers: { Authorization: `token ${tokenReal}` } });
             const fileJson = await fileRes.json();
             
@@ -229,13 +228,50 @@
                 headers: { Authorization: `token ${tokenReal}`, "Content-Type": "application/json" },
                 body: JSON.stringify({
                     message: "Sincronización Automática Auditoría Hacienda",
-                    content: btoa(JSON.stringify(soloSoftr, null, 4)),
+                    content: btoa(unescape(encodeURIComponent(JSON.stringify(soloSoftr, null, 4)))),
                     sha: fileJson.sha
                 })
             });
 
             if(putRes.ok) alert("Auditoría guardada permanentemente en GitHub Cloud.");
         } catch (e) { alert("Error en sincronización: " + e.message); }
+    }
+
+    // --- PROCESAMIENTO DE CSV DESDE GITHUB RAW ---
+    async function cargarRaw() {
+        const urlCsv = document.getElementById('rawCsvInput').value;
+        try {
+            // 1. Descargar el archivo CSV
+            const respuesta = await fetch(urlCsv);
+            if (!respuesta.ok) throw new Error("No se pudo leer el archivo en GitHub");
+            const csvTexto = await respuesta.text();
+
+            // 2. Convertir CSV a JSON
+            const lineas = csvTexto.split('\n').filter(linea => linea.trim() !== '');
+            if (lineas.length < 2) throw new Error("El CSV está vacío o no tiene datos");
+
+            const cabeceras = lineas[0].split(',');
+            const parsed = [];
+
+            for (let i = 1; i < lineas.length; i++) {
+                const obj = {};
+                // Expresión regular para manejar comas dentro de comillas si es necesario
+                const valores = lineas[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/); 
+                cabeceras.forEach((cabecera, index) => {
+                    obj[cabecera.trim()] = (valores[index] || '').replace(/^"|"$/g, '').trim();
+                });
+                parsed.push(obj);
+            }
+
+            alert("Datos CSV descargados y cargados en memoria correctamente.");
+            console.log("CSV Parseado:", parsed);
+            
+            // Opcional: Renderizar en la tabla para visualizarlos
+            // renderizarTabla(parsed);
+            
+        } catch (e) {
+            alert("Error procesando CSV: " + e.message);
+        }
     }
 
     // --- GENERACIÓN DE WORD ---
@@ -259,15 +295,6 @@
         Packer.toBlob(doc).then(blob => {
             saveAs(blob, `Reporte_Hacienda_${mesStr}_2026.docx`);
         });
-    }
-
-    function cargarRaw() {
-        const val = document.getElementById('rawJsonInput').value;
-        try {
-            const parsed = JSON.parse(val);
-            alert("Datos RAW cargados en memoria. Listos para sincronizar.");
-            console.log(parsed);
-        } catch(e) { alert("Error en formato JSON"); }
     }
 </script>
 
